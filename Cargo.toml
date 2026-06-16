@@ -1,0 +1,18 @@
+[package]
+name = "car-mechanic"
+version = "0.1.0"
+edition = "2021"
+description = "Diagnose and fix Mozilla custom Chromium-as-Release (CaR) build failures"
+license = "MPL-2.0"
+
+[[bin]]
+name = "car-mechanic"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+ureq = "2"
+regex = "1"
+anyhow = "1"

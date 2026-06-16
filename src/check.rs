@@ -7,35 +7,28 @@ use crate::types::Platform;
 struct PlatformConfig {
     platform: Platform,
     task_name: &'static str,
-    /// Seconds — warn if max-run-time is at or above this
-    warn_run_time: u32,
 }
 
 static PLATFORM_CONFIGS: &[PlatformConfig] = &[
     PlatformConfig {
         platform: Platform::MacosX64,
         task_name: "macosx-custom-car",
-        warn_run_time: 12000,
     },
     PlatformConfig {
         platform: Platform::MacosArm64,
         task_name: "macosx-arm64-custom-car",
-        warn_run_time: 12000,
     },
     PlatformConfig {
         platform: Platform::Linux64,
         task_name: "linux64-custom-car",
-        warn_run_time: 20000,
     },
     PlatformConfig {
         platform: Platform::Win64,
         task_name: "win64-custom-car",
-        warn_run_time: 8000,
     },
     PlatformConfig {
         platform: Platform::Android,
         task_name: "android-custom-car",
-        warn_run_time: 24000,
     },
 ];
 
@@ -134,23 +127,10 @@ fn check_task(c: &PlatformConfig, misc_content: &str) -> Vec<CheckItem> {
         .and_then(|s| extract_value(s, "max-run-time"))
         .and_then(|v| v.parse::<u32>().ok())
     {
-        let status = if run_time >= c.warn_run_time {
-            "warn"
-        } else {
-            "ok"
-        };
-        let detail = if run_time >= c.warn_run_time {
-            format!(
-                "{}s — approaching limit, consider bumping in misc.yml",
-                run_time
-            )
-        } else {
-            format!("{}s", run_time)
-        };
         items.push(CheckItem {
             name: "max-run-time".to_string(),
-            status,
-            detail,
+            status: "info",
+            detail: format!("{}s", run_time),
         });
     } else {
         items.push(CheckItem {
@@ -233,15 +213,12 @@ fn check_task(c: &PlatformConfig, misc_content: &str) -> Vec<CheckItem> {
     items
 }
 
-fn offline_checks(c: &PlatformConfig) -> Vec<CheckItem> {
+fn offline_checks(_c: &PlatformConfig) -> Vec<CheckItem> {
     vec![
         CheckItem {
             name: "max-run-time".to_string(),
             status: "info",
-            detail: format!(
-                "warn threshold: {}s — run from mozilla-central checkout for live value",
-                c.warn_run_time
-            ),
+            detail: "run from mozilla-central checkout for live value".to_string(),
         },
         CheckItem {
             name: "use-python".to_string(),

@@ -24,9 +24,17 @@ car-mechanic update
 
 ### `diagnose` — match a build log against known failures
 
+The recommended path is `--url` — pass a Treeherder job URL and the tool fetches the log via `treeherder-cli` automatically:
+
 ```
-# Pipe a CI log directly
-treeherder-cli log <task-id> | car-mechanic diagnose
+car-mechanic diagnose --url 'https://treeherder.mozilla.org/jobs?repo=mozilla-central&...'
+```
+
+Or pipe / pass a file manually:
+
+```
+# Pipe from treeherder-cli
+treeherder-cli <revision> --fetch-logs --filter custom-car --match-filter failure | car-mechanic diagnose
 
 # From a file
 car-mechanic diagnose build.log
@@ -35,12 +43,24 @@ car-mechanic diagnose build.log
 car-mechanic diagnose --platform linux64 < build.log
 
 # JSON output (for AI/scripting)
-car-mechanic diagnose --json < build.log
+car-mechanic diagnose --json --url 'https://treeherder.mozilla.org/...'
 ```
 
 Returns: matched pattern(s), cause, ordered fix steps, related Bugzilla bugs, upstream files to check, and suggested search queries.
 
 Platforms: `macos-x64`, `macos-arm64`, `linux64`, `win64`, `android`
+
+### `check` — pre-flight config check
+
+Reads `taskcluster/kinds/toolchain/misc.yml` from your mozilla-central checkout and reports the live config for each CaR platform: `max-run-time`, Python version, and macOS SDK being fetched.
+
+```
+car-mechanic check               # all platforms
+car-mechanic check linux64
+car-mechanic check macos-x64 --json
+```
+
+Run from inside a mozilla-central checkout for live values; falls back to offline mode otherwise.
 
 ### `explain` — full detail on a known pattern
 
@@ -59,7 +79,7 @@ car-mechanic list --platform android
 ### `search` — search Chromium, depot_tools, or V8
 
 ```
-# Search Chromium source (requires chromium-search on PATH)
+# Search Chromium source (chromium-search bundled — no separate install needed)
 car-mechanic search 'mac_sdk_path'
 car-mechanic search --cat build/config/mac/mac_sdk.gni
 
@@ -68,11 +88,9 @@ car-mechanic search --repo depot_tools cipd
 car-mechanic search --repo v8 snapshot
 ```
 
-`chromium-search` is a separate tool: https://github.com/92kns/chromium-search
-
 ### `risk` — upstream change radar
 
-Queries GitHub for recent commits to files known to break CaR builds (`DEPS`, `mac_sdk.gni`, `visual_studio_version.gni`, `install-build-deps.py`, etc.).
+Queries GitHub for recent commits to files known to break CaR builds (`DEPS`, `mac_sdk.gni`, `visual_studio_version.gni`, `install-build-deps.py`, etc.). Set `GITHUB_TOKEN` to avoid rate limits.
 
 ```
 car-mechanic risk

@@ -24,30 +24,49 @@ Requires Rust (https://rustup.rs). Puts `car-mechanic` on PATH via `~/.cargo/bin
 car-mechanic update
 ```
 
-## Five commands
+## Six commands
 
 ### 1. diagnose — the primary entry point
 
-Reads a build log (stdin or file) and matches it against known failure patterns.
+**Preferred**: pass a Treeherder URL directly — the tool fetches the log via `treeherder-cli`:
 
 ```
-# From a CI log via treeherder-cli:
-treeherder-cli log <task-id> | car-mechanic diagnose
+car-mechanic diagnose --url 'https://treeherder.mozilla.org/jobs?repo=mozilla-central&revision=abc&...'
+car-mechanic diagnose --url 'https://treeherder.mozilla.org/...' --json
+```
+
+`treeherder-cli` is available in any mozilla-central checkout. The `--url` flag automatically
+runs it with `--fetch-logs --filter custom-car --match-filter failure`.
+
+Alternatively, pipe or pass a file:
+
+```
+# Pipe manually:
+treeherder-cli <revision> --fetch-logs --filter custom-car --match-filter failure | car-mechanic diagnose
 
 # From a file:
 car-mechanic diagnose /path/to/build.log
 
 # Filter to one platform:
 car-mechanic diagnose --platform linux64 < build.log
-
-# Machine-readable output:
-car-mechanic diagnose --json < build.log
 ```
 
 Output includes: pattern id, cause, ordered fix steps (some with shell commands),
 related bug URLs, upstream files to inspect, and suggested `search` queries.
 
-### 2. explain — full detail on a known pattern
+### 2. check — pre-flight config check
+
+Reads `taskcluster/kinds/toolchain/misc.yml` live from the mozilla-central checkout
+(walks up from CWD). Reports `max-run-time`, Python version pin, and macOS SDK fetch
+for each CaR platform. Falls back to offline reminders if misc.yml is not found.
+
+```
+car-mechanic check               # all platforms
+car-mechanic check linux64
+car-mechanic check macos-x64 --json
+```
+
+### 3. explain — full detail on a known pattern
 
 ```
 car-mechanic explain macos-sdk-version
@@ -56,7 +75,7 @@ car-mechanic explain linux-vulkan-crash --json
 
 Use `car-mechanic list` to see all pattern ids.
 
-### 3. list — enumerate known patterns
+### 4. list — enumerate known patterns
 
 ```
 car-mechanic list
@@ -64,7 +83,7 @@ car-mechanic list --platform android
 car-mechanic list --json
 ```
 
-### 4. search — search Chromium/depot_tools/V8 source
+### 5. search — search Chromium/depot_tools/V8 source
 
 ```
 # Search Chromium source (delegates to chromium-search on PATH):
@@ -86,7 +105,7 @@ car-mechanic search 'sdk_inputs' -- --json -C 3
 `chromium-search` must be on PATH for `--repo chromium` (the default).
 Install from: https://github.com/92kns/chromium-search
 
-### 5. risk — upstream change radar
+### 6. risk — upstream change radar
 
 Queries the GitHub API for recent commits to files known to break CaR builds.
 
@@ -105,7 +124,8 @@ Tracked files: `build/config/mac/mac_sdk.gni`, `build/vs_toolchain.py`,
 
 ## Recommended diagnostic workflow
 
-1. Run `car-mechanic diagnose` on the failing CI log.
+1. Pass the Treeherder job URL to diagnose:
+   `car-mechanic diagnose --url '<treeherder-url>'`
 2. If patterns matched: read the fix steps. Run the suggested `search` queries to
    verify current upstream state before applying a fix.
 3. If no patterns matched: run `car-mechanic risk` to check for recent upstream
@@ -113,6 +133,8 @@ Tracked files: `build/config/mac/mac_sdk.gni`, `build/vs_toolchain.py`,
    `car-mechanic search '<error substring>'`
 4. Cross-reference with related bugs in `explain` to understand the full history
    of that failure class.
+5. Run `car-mechanic check <platform>` to verify the current misc.yml config looks
+   sane (Python version, SDK fetch, max-run-time).
 
 ## Known platforms
 

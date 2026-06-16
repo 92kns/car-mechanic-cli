@@ -15,6 +15,7 @@ use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 
 const REPO_URL: &str = "https://github.com/92kns/car-mechanic-cli";
+const AGENTS_MD: &str = include_str!("../AGENTS.md");
 
 #[derive(Parser)]
 #[command(
@@ -133,6 +134,12 @@ enum Commands {
     ///
     /// Equivalent to: cargo install --force --git https://github.com/92kns/car-mechanic-cli
     Update,
+
+    /// Print the AI agent usage guide (AGENTS.md) to stdout
+    ///
+    /// Pipe to a file or feed directly to an AI agent as context:
+    ///   car-mechanic agents | <your-ai-tool>
+    Agents,
 }
 
 fn main() -> Result<()> {
@@ -170,6 +177,10 @@ fn main() -> Result<()> {
         }
         Commands::Risk { since, platform } => risk::run(since, platform.as_deref(), cli.json),
         Commands::Update => run_update(),
+        Commands::Agents => {
+            print!("{}", AGENTS_MD);
+            Ok(())
+        }
     }
 }
 

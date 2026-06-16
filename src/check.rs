@@ -9,7 +9,6 @@ struct PlatformConfig {
     task_name: &'static str,
     /// Seconds — warn if max-run-time is at or above this
     warn_run_time: u32,
-    expected_gn_args: &'static [&'static str],
 }
 
 static PLATFORM_CONFIGS: &[PlatformConfig] = &[
@@ -17,31 +16,26 @@ static PLATFORM_CONFIGS: &[PlatformConfig] = &[
         platform: Platform::MacosX64,
         task_name: "macosx-custom-car",
         warn_run_time: 12000,
-        expected_gn_args: &["use_clang_modules=false", "use_v8_context_snapshot=false"],
     },
     PlatformConfig {
         platform: Platform::MacosArm64,
         task_name: "macosx-arm64-custom-car",
         warn_run_time: 12000,
-        expected_gn_args: &["use_clang_modules=false", "use_v8_context_snapshot=false"],
     },
     PlatformConfig {
         platform: Platform::Linux64,
         task_name: "linux64-custom-car",
         warn_run_time: 20000,
-        expected_gn_args: &["use_v8_context_snapshot=false"],
     },
     PlatformConfig {
         platform: Platform::Win64,
         task_name: "win64-custom-car",
         warn_run_time: 8000,
-        expected_gn_args: &["use_v8_context_snapshot=false"],
     },
     PlatformConfig {
         platform: Platform::Android,
         task_name: "android-custom-car",
         warn_run_time: 24000,
-        expected_gn_args: &[],
     },
 ];
 
@@ -192,26 +186,6 @@ fn check_task(c: &PlatformConfig, misc_content: &str) -> Vec<CheckItem> {
                 detail: "not set — should be \"3.11\"".to_string(),
             });
         }
-    }
-
-    // GN args
-    for &expected_arg in c.expected_gn_args {
-        let present = task_section
-            .as_deref()
-            .map(|s| s.contains(expected_arg))
-            .unwrap_or(false);
-        items.push(CheckItem {
-            name: format!(
-                "gn:{}",
-                expected_arg.split('=').next().unwrap_or(expected_arg)
-            ),
-            status: if present { "ok" } else { "warn" },
-            detail: if present {
-                format!("{} set", expected_arg)
-            } else {
-                format!("{} missing from GN args", expected_arg)
-            },
-        });
     }
 
     // macOS SDK fetch

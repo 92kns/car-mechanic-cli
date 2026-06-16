@@ -20,6 +20,14 @@ cargo install --git https://github.com/92kns/car-mechanic-cli
 car-mechanic update
 ```
 
+## Dependencies
+
+| Tool | Required | Notes |
+|---|---|---|
+| `chromium-search` | Bundled | Vendored inside the binary — no install needed. PATH version takes priority if present. |
+| `treeherder-cli` | When using `diagnose --url` | Available in any mozilla-central checkout. Fetches CaR failure logs. |
+| `searchfox-cli` | Never called directly | Available in mozilla-central checkouts. Use it alongside car-mechanic to search Firefox-side code (taskcluster configs, build scripts). |
+
 ## Commands
 
 ### `diagnose` — match a build log against known failures

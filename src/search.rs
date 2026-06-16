@@ -1,6 +1,8 @@
 use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
 
+const BUNDLED_CHROMIUM_SEARCH: &str = include_str!("../vendor/chromium-search");
+
 const DEPOT_TOOLS_LOG_URL: &str =
     "https://chromium.googlesource.com/chromium/tools/depot_tools/+log/main";
 const V8_LOG_URL: &str = "https://chromium.googlesource.com/v8/v8/+log/main";
@@ -60,20 +62,37 @@ fn run_chromium_search(query: &str, limit: usize, extra_args: &[String]) -> Resu
 }
 
 fn run_chromium_search_raw(args: &[String]) -> Result<()> {
-    let status = std::process::Command::new("chromium-search")
+    // Prefer PATH-installed version so users can override with a newer copy.
+    let result = std::process::Command::new("chromium-search")
         .args(args)
         .status();
 
-    match status {
-        Ok(s) if s.success() => Ok(()),
+    match result {
+        Ok(s) if s.success() => return Ok(()),
         Ok(s) => bail!("chromium-search exited with status {}", s),
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => bail!(
-            "chromium-search not found on PATH.\n\
-             Install from: https://github.com/92kns/chromium-search\n\
-             Or copy from ~/perf/chromium-search/chromium-search and put it on PATH."
-        ),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            // Fall back to the vendored copy bundled inside this binary.
+            run_bundled_chromium_search(args)
+        }
         Err(e) => Err(e).context("running chromium-search"),
     }
+}
+
+fn run_bundled_chromium_search(args: &[String]) -> Result<()> {
+    let script_path = std::env::temp_dir().join("car-mechanic-chromium-search.py");
+    std::fs::write(&script_path, BUNDLED_CHROMIUM_SEARCH)
+        .context("writing bundled chromium-search to temp dir")?;
+
+    let status = std::process::Command::new("python3")
+        .arg(&script_path)
+        .args(args)
+        .status()
+        .context("running bundled chromium-search (python3 not found?)")?;
+
+    if !status.success() {
+        bail!("chromium-search exited with status {}", status);
+    }
+    Ok(())
 }
 
 fn run_gitiles_log_search(query: &str, base_url: &str, limit: usize, json: bool) -> Result<()> {

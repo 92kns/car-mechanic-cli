@@ -83,6 +83,18 @@ static TRACKED_FILES: &[TrackedFile] = &[
         ],
         risk_description: "Python environment change → may affect build scripts (pattern: python-version)",
     },
+    TrackedFile {
+        path: "build/config/c++/modules.gni",
+        github_repo: Some("chromium/chromium"),
+        platforms: &[Platform::MacosX64, Platform::MacosArm64],
+        risk_description: "C++ modules config change → may break gn gen with SDK path errors (pattern: macos-clang-modules, Bug 2045375)",
+    },
+    TrackedFile {
+        path: "build/util/lastchange.py",
+        github_repo: Some("chromium/chromium"),
+        platforms: &[Platform::Win64],
+        risk_description: "LASTCHANGE script moved or changed interface → Windows dummy LASTCHANGE generation breaks (pattern: windows-lastchange)",
+    },
     // depot_tools has no GitHub mirror; googlesource.com now requires sign-in for log queries.
     // Tracked here for documentation — skipped at runtime with a manual-check note.
     TrackedFile {

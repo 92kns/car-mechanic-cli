@@ -116,6 +116,13 @@ fn diagnose_macos_rbe_action() {
 }
 
 #[test]
+fn diagnose_macos_clang_modules() {
+    let log = "error: module 'DarwinFoundation' not found";
+    let ids = matching_ids(log);
+    assert!(ids.contains(&"macos-clang-modules"), "got: {:?}", ids);
+}
+
+#[test]
 fn diagnose_macos_sdk_403() {
     let log = "Error: 403 Forbidden fetching MacOSX14.0.sdk";
     let ids = matching_ids(log);

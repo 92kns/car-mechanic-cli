@@ -50,7 +50,7 @@ pub static PATTERNS: &[Pattern] = &[
         platforms: &[Platform::MacosX64, Platform::MacosArm64],
         error_patterns: &[
             r"DarwinFoundation\.modulemap",
-            r"module.*not found.*Darwin",
+            r"module 'Darwin[^']*' not found",
             r"modulemap",
         ],
         cause: "Chromium C++ modules require modulemap files that only exist in a full \

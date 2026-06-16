@@ -99,8 +99,7 @@ fn run_gitiles_log_search(query: &str, base_url: &str, limit: usize, json: bool)
     let url = format!("{}?format=JSON&n={}", base_url, limit.min(200));
     let raw = fetch_text(&url)?;
     let stripped = raw.trim_start_matches(")]}'").trim_start_matches('\n');
-    let log: GitilesLog =
-        serde_json::from_str(stripped).context("parsing gitiles log response")?;
+    let log: GitilesLog = serde_json::from_str(stripped).context("parsing gitiles log response")?;
 
     let q_lower = query.to_lowercase();
     let matches: Vec<&GitilesCommit> = log
@@ -115,7 +114,10 @@ fn run_gitiles_log_search(query: &str, base_url: &str, limit: usize, json: bool)
     }
 
     if matches.is_empty() {
-        println!("No commits matching '{}' in the last {} entries.", query, limit);
+        println!(
+            "No commits matching '{}' in the last {} entries.",
+            query, limit
+        );
         return Ok(());
     }
 

@@ -35,15 +35,14 @@ pub fn run(platform: Option<&str>, json: bool) -> Result<()> {
     }
 
     let filter_label = platform.unwrap_or("all");
-    println!("{} known pattern(s) [platform: {}]\n", summaries.len(), filter_label);
+    println!(
+        "{} known pattern(s) [platform: {}]\n",
+        summaries.len(),
+        filter_label
+    );
 
     for s in &summaries {
-        println!(
-            "  {:35}  {}  ({})",
-            s.id,
-            s.platforms.join(", "),
-            s.title,
-        );
+        println!("  {:35}  {}  ({})", s.id, s.platforms.join(", "), s.title,);
     }
 
     println!();

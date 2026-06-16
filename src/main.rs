@@ -5,9 +5,9 @@ mod list;
 mod patterns;
 mod risk;
 mod search;
-mod types;
 #[cfg(test)]
 mod tests;
+mod types;
 
 use std::path::PathBuf;
 
@@ -138,7 +138,11 @@ enum Commands {
 fn main() -> Result<()> {
     let cli = Cli::parse();
     match cli.command {
-        Commands::Diagnose { file, url, platform } => {
+        Commands::Diagnose {
+            file,
+            url,
+            platform,
+        } => {
             if let Some(u) = url {
                 diagnose::run_from_url(&u, platform.as_deref(), cli.json)
             } else {
@@ -198,9 +202,7 @@ fn run_update() -> Result<()> {
         args.extend_from_slice(&["--tag", &tag_owned]);
     }
 
-    let status = std::process::Command::new("cargo")
-        .args(&args)
-        .status();
+    let status = std::process::Command::new("cargo").args(&args).status();
 
     match status {
         Ok(s) if s.success() => {

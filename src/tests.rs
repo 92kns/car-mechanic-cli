@@ -1,6 +1,6 @@
 use regex::Regex;
 
-use crate::patterns::{find_by_id, filter_by_platform, PATTERNS};
+use crate::patterns::{filter_by_platform, find_by_id, PATTERNS};
 use crate::types::Platform;
 
 // ---------------------------------------------------------------------------
@@ -22,7 +22,11 @@ fn all_patterns_have_required_fields() {
         assert!(!p.id.is_empty(), "pattern has empty id");
         assert!(!p.title.is_empty(), "pattern '{}' has empty title", p.id);
         assert!(!p.cause.is_empty(), "pattern '{}' has empty cause", p.id);
-        assert!(!p.platforms.is_empty(), "pattern '{}' has no platforms", p.id);
+        assert!(
+            !p.platforms.is_empty(),
+            "pattern '{}' has no platforms",
+            p.id
+        );
         assert!(
             !p.fix_steps.is_empty(),
             "pattern '{}' has no fix steps",
@@ -131,7 +135,8 @@ fn diagnose_macos_sdk_403() {
 
 #[test]
 fn diagnose_linux_missing_lib() {
-    let log = "chrome: error while loading shared libraries: libxcb.so.1: cannot open shared object file";
+    let log =
+        "chrome: error while loading shared libraries: libxcb.so.1: cannot open shared object file";
     let ids = matching_ids(log);
     assert!(ids.contains(&"linux-missing-libs"), "got: {:?}", ids);
     // Should NOT fire code-cache-generator for a plain missing-lib message
@@ -194,7 +199,8 @@ fn diagnose_depot_tools_permission_denied() {
 #[test]
 fn diagnose_macos_sdk_undeclared_selector() {
     // Bug 1919962
-    let log = "error: no known class method for selector 'frameResizeCursorFromPosition:inDirections:'";
+    let log =
+        "error: no known class method for selector 'frameResizeCursorFromPosition:inDirections:'";
     let ids = matching_ids(log);
     assert!(ids.contains(&"macos-sdk-version"), "got: {:?}", ids);
 }

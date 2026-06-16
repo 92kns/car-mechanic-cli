@@ -18,8 +18,10 @@ pub fn run_from_url(url: &str, platform: Option<&str>, json: bool) -> Result<()>
         .args([
             url,
             "--fetch-logs",
-            "--filter", "custom-car",
-            "--match-filter", "failure",
+            "--filter",
+            "custom-car",
+            "--match-filter",
+            "failure",
         ])
         .output()
         .map_err(|e| {
@@ -41,8 +43,10 @@ pub fn run_from_url(url: &str, platform: Option<&str>, json: bool) -> Result<()>
 
     let log_text = String::from_utf8_lossy(&output.stdout).into_owned();
     if log_text.trim().is_empty() {
-        eprintln!("treeherder-cli returned no output. The task may not have failed yet, \
-                   or no custom-car jobs matched.");
+        eprintln!(
+            "treeherder-cli returned no output. The task may not have failed yet, \
+                   or no custom-car jobs matched."
+        );
         return Ok(());
     }
 
@@ -73,7 +77,10 @@ fn run_on_text(log_text: &str, platform: Option<&str>, json: bool) -> Result<()>
             if matched_on.is_empty() {
                 None
             } else {
-                Some(DiagnoseMatch { pattern, matched_on })
+                Some(DiagnoseMatch {
+                    pattern,
+                    matched_on,
+                })
             }
         })
         .collect();
@@ -149,8 +156,9 @@ fn run_on_text(log_text: &str, platform: Option<&str>, json: bool) -> Result<()>
 
 fn read_input(file: Option<PathBuf>) -> Result<String> {
     match file {
-        Some(path) => std::fs::read_to_string(&path)
-            .with_context(|| format!("reading {}", path.display())),
+        Some(path) => {
+            std::fs::read_to_string(&path).with_context(|| format!("reading {}", path.display()))
+        }
         None => {
             let mut buf = String::new();
             std::io::stdin()

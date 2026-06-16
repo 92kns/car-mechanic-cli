@@ -769,5 +769,7 @@ pub fn find_by_id(id: &str) -> Option<&'static Pattern> {
 }
 
 pub fn filter_by_platform(platform: Platform) -> impl Iterator<Item = &'static Pattern> {
-    PATTERNS.iter().filter(move |p| p.platforms.contains(&platform))
+    PATTERNS
+        .iter()
+        .filter(move |p| p.platforms.contains(&platform))
 }

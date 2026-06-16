@@ -147,13 +147,45 @@ fn main() -> Result<()> {
 }
 
 fn run_update() -> Result<()> {
-    println!("Updating car-mechanic from {}...", REPO_URL);
+    const CURRENT: &str = env!("CARGO_PKG_VERSION");
+
+    let latest = fetch_latest_tag().unwrap_or_else(|e| {
+        eprintln!("warn: could not check latest version: {}", e);
+        None
+    });
+
+    match latest {
+        Some(ref tag) => {
+            let tag_ver = tag.trim_start_matches('v');
+            if tag_ver == CURRENT {
+                println!("Already up to date (v{}).", CURRENT);
+                return Ok(());
+            }
+            println!("Updating v{} → {} ...", CURRENT, tag);
+        }
+        None => {
+            println!("Updating car-mechanic (current: v{})...", CURRENT);
+        }
+    }
+
+    let mut args = vec!["install", "--force", "--git", REPO_URL];
+    let tag_owned;
+    if let Some(ref tag) = latest {
+        tag_owned = tag.clone();
+        args.extend_from_slice(&["--tag", &tag_owned]);
+    }
+
     let status = std::process::Command::new("cargo")
-        .args(["install", "--force", "--git", REPO_URL])
+        .args(&args)
         .status();
+
     match status {
         Ok(s) if s.success() => {
-            println!("Updated successfully.");
+            if let Some(tag) = latest {
+                println!("Updated to {}.", tag);
+            } else {
+                println!("Updated successfully.");
+            }
             Ok(())
         }
         Ok(s) => anyhow::bail!("cargo install exited with status {}", s),
@@ -164,4 +196,23 @@ fn run_update() -> Result<()> {
         }
         Err(e) => Err(e).context("failed to run cargo install"),
     }
+}
+
+fn fetch_latest_tag() -> Result<Option<String>> {
+    #[derive(serde::Deserialize)]
+    struct Tag {
+        name: String,
+    }
+
+    let url = "https://api.github.com/repos/92kns/car-mechanic-cli/tags";
+    let body = ureq::get(url)
+        .set("Accept", "application/vnd.github.v3+json")
+        .set("User-Agent", "car-mechanic-cli")
+        .call()
+        .context("fetching tags")?
+        .into_string()
+        .context("reading tags response")?;
+
+    let tags: Vec<Tag> = serde_json::from_str(&body).context("parsing tags")?;
+    Ok(tags.into_iter().next().map(|t| t.name))
 }

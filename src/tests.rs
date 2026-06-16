@@ -173,6 +173,64 @@ fn diagnose_android_gclient() {
     assert!(ids.contains(&"android-gclient-sync"), "got: {:?}", ids);
 }
 
+// Backtest: real error snippets from historical bugs
+
+#[test]
+fn diagnose_depot_tools_cipd_bin_missing() {
+    // Bug 1847210
+    let log = "/builds/worker/custom_car/depot_tools/.cipd_bin/dirmd: No such file or directory\ngenerate_location_tags.py returned non-zero exit status 127";
+    let ids = matching_ids(log);
+    assert!(ids.contains(&"depot-tools-cipd"), "got: {:?}", ids);
+}
+
+#[test]
+fn diagnose_depot_tools_permission_denied() {
+    // Bug 1901936
+    let log = "PermissionError: [Errno 13] Permission denied: '/builds/worker/.config/depot_tools'";
+    let ids = matching_ids(log);
+    assert!(ids.contains(&"depot-tools-cipd"), "got: {:?}", ids);
+}
+
+#[test]
+fn diagnose_macos_sdk_undeclared_selector() {
+    // Bug 1919962
+    let log = "error: no known class method for selector 'frameResizeCursorFromPosition:inDirections:'";
+    let ids = matching_ids(log);
+    assert!(ids.contains(&"macos-sdk-version"), "got: {:?}", ids);
+}
+
+#[test]
+fn diagnose_windows_dxil_dll_missing() {
+    // Bug 1925145, 1928841
+    let log = "ninja: error: 'D:/task/fetches/VS/Windows Kits/10/bin/10.0.26100.0/x64/dxil.dll', needed by 'dxil.dll', missing and no known rule to make it";
+    let ids = matching_ids(log);
+    assert!(ids.contains(&"windows-sdk-version"), "got: {:?}", ids);
+}
+
+#[test]
+fn diagnose_macos_sdk_undeclared_cg_identifier() {
+    // Bug 1989676
+    let log = "error: use of undeclared identifier 'kCGImageByteOrder32Host'; did you mean 'kCGImageByteOrder32Big'?";
+    let ids = matching_ids(log);
+    assert!(ids.contains(&"macos-sdk-version"), "got: {:?}", ids);
+}
+
+#[test]
+fn diagnose_linux_vulkan_crash_browsertime() {
+    // Bug 2046664 - GPU crash as seen through browsertime
+    let log = "BrowserError: invalid session id: session deleted as the browser has closed the connection\nBrowsertime process exited with code -9";
+    let ids = matching_ids(log);
+    assert!(ids.contains(&"linux-vulkan-crash"), "got: {:?}", ids);
+}
+
+#[test]
+fn diagnose_git_lstree_format_error() {
+    // Bug 1847919 - macOS git too old for --format flag
+    let log = "Error: Command 'git ls-tree -r HEAD --format %(objectmode) %(objectname) %(path)' returned non-zero exit status 129";
+    let ids = matching_ids(log);
+    assert!(ids.contains(&"depot-tools-cipd"), "got: {:?}", ids);
+}
+
 #[test]
 fn diagnose_no_match_for_unrelated_log() {
     let log = "Build succeeded. All tests passed.";

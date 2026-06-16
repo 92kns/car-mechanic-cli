@@ -75,7 +75,7 @@ pub static PATTERNS: &[Pattern] = &[
     },
     Pattern {
         id: "macos-sdk-version",
-        title: "macOS build fails: SDK version 403, wrong SDK, or SDK path not found",
+        title: "macOS build fails: SDK too old, 403, or SDK path not found",
         platforms: &[Platform::MacosX64, Platform::MacosArm64],
         error_patterns: &[
             r"403.*[Ss][Dd][Kk]",
@@ -84,11 +84,17 @@ pub static PATTERNS: &[Pattern] = &[
             r"No such file.*MacOSX\d+",
             r"mac_sdk_path.*not found",
             r"SDK.*[Uu]navailable",
+            r"error: use of undeclared identifier.*(?:NS|kCG|CA)[A-Z]",
+            r"error: no known class method for selector",
+            r"error: use of undeclared identifier 'kCGImage",
         ],
         cause: "Google periodically bumps the minimum macOS SDK version in \
                 build/config/mac/mac_sdk.gni. Our toolchain fetches a pinned SDK; when the \
-                required version diverges from what we fetch, the build fails. The SDK is \
-                hosted as a Mozilla toolchain artifact and requires a releng request to update.",
+                required version diverges, the build fails in one of two ways: (1) obvious path \
+                errors (403, SDK not found), or (2) compile-time undeclared-identifier errors \
+                because the fetched SDK is missing symbols added in newer OS versions (e.g. \
+                NSCursorFrameResizePositionRight, kCGImageByteOrder32Host). Both require the \
+                same fix: update to a newer SDK toolchain.",
         fix_steps: &[
             FixStep {
                 description: "Check what SDK version Chromium now requires upstream",
@@ -182,7 +188,7 @@ pub static PATTERNS: &[Pattern] = &[
     },
     Pattern {
         id: "windows-sdk-version",
-        title: "Windows build fails: Windows SDK version mismatch",
+        title: "Windows build fails: Windows SDK version mismatch or DLL missing",
         platforms: &[Platform::Win64],
         error_patterns: &[
             r"SDK_VERSION",
@@ -190,6 +196,9 @@ pub static PATTERNS: &[Pattern] = &[
             r"winsdkver.*not found",
             r"10\.0\.\d+\.\d+.*not found",
             r"WINDOWSSDKDIR.*invalid",
+            r"dxil\.dll.*missing",
+            r"\.dll.*missing and no known rule to make it",
+            r"ninja: error.*Windows Kits.*\.dll",
         ],
         cause: "The Windows SDK version is hardcoded in build/vs_toolchain.py and \
                 build/toolchain/win/setup_toolchain.py. Our fetched VS toolchain pins a \
@@ -300,11 +309,17 @@ pub static PATTERNS: &[Pattern] = &[
             r"(?i)FATAL.*gpu",
             r"(?i)gpu.*FATAL",
             r"(?i)vkCreateInstance.*failed",
+            // Browsertime-visible symptoms of Chrome crashing (GPU process killed)
+            r"session deleted as the browser has closed the connection",
+            r"not connected to DevTools",
+            r"Browsertime process exited with code -9",
+            r"BrowserError.*custom-car",
         ],
         cause: "Chrome defaults to the Vulkan rendering path on Ubuntu 24.04. CI workers \
                 use Intel Skylake/Coffeelake GPUs whose drivers do not support Vulkan reliably \
-                in the containerized CI environment. After the Ubuntu 24.04 worker config \
-                change this became a hard crash on Chrome startup.",
+                in the containerized CI environment. The crash manifests either as GPU process \
+                FATAL log lines or, when seen through browsertime, as 'session deleted / not \
+                connected to DevTools' with exit code -9.",
         fix_steps: &[
             FixStep {
                 description: "Add --use-angle=gl-egl to Chrome launch flags to use ANGLE over \
@@ -579,26 +594,46 @@ pub static PATTERNS: &[Pattern] = &[
             r"XDG_CONFIG_HOME",
             r"gclient.*config.*error",
             r"cipd_bin_setup",
+            // Bug 1847210: cipd binary missing after depot_tools change
+            r"\.cipd_bin.*No such file or directory",
+            r"generate_location_tags.*exit status 127",
+            // Bug 1901936: depot_tools writes to $HOME/.config which is not writable in CI
+            r"PermissionError.*depot_tools",
+            r"Permission denied.*\.config/depot_tools",
+            // Bug 1847919: macOS workers had git 2.27 which lacks --format flag
+            r"git ls-tree.*exit status 12[0-9]",
+            r"git.*returned non-zero exit status 129",
         ],
-        cause: "depot_tools' cipd setup is sensitive to XDG_CONFIG_HOME and PATH ordering. \
-                Bug 1901936 found that upstream changes to how depot_tools resolves its own \
-                path broke cipd on Linux and macOS. The fix is to source cipd_bin_setup.sh \
-                explicitly before other depot_tools operations.",
+        cause: "depot_tools environment setup can break in several ways: (1) cipd binary \
+                missing after upstream depot_tools changes its bootstrap path \
+                (Bug 1847210: .cipd_bin/dirmd not found); (2) depot_tools tries to write \
+                config to $HOME/.config which CI workers cannot write to — fix is to set \
+                XDG_CONFIG_HOME to a writable directory (Bug 1901936); (3) macOS workers \
+                running old git (< 2.28) lack the --format flag used by gclient \
+                (Bug 1847919 — resolved upstream in depot_tools, just retry).",
         fix_steps: &[
             FixStep {
                 description: "Verify build-custom-car.sh sources cipd_bin_setup.sh for Linux/macOS",
                 command: None,
             },
             FixStep {
-                description: "For Linux: verify XDG_CONFIG_HOME is set to CUSTOM_CAR_DIR",
+                description: "For Permission denied on .config/depot_tools: verify XDG_CONFIG_HOME \
+                               is set to CUSTOM_CAR_DIR in the Linux/Android section of \
+                               build-custom-car.sh",
                 command: None,
             },
             FixStep {
-                description: "Check recent depot_tools changes for cipd-related commits",
+                description: "For .cipd_bin missing: check recent depot_tools changes for \
+                               cipd bootstrap path changes",
                 command: Some("car-mechanic search --repo depot_tools cipd"),
             },
+            FixStep {
+                description: "For git ls-tree exit 129 on macOS: this is a git version issue \
+                               fixed upstream in depot_tools — retry the task",
+                command: None,
+            },
         ],
-        bugs: &[1901936, 1847210],
+        bugs: &[1901936, 1847210, 1847919],
         upstream_files: &[],
         search_queries: &[
             "cipd_bin_setup file:third_party/depot_tools/",

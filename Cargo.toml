@@ -1,8 +1,8 @@
 [package]
 name = "car-mechanic"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
-description = "Diagnose and fix Mozilla custom Chromium-as-Release (CaR) build failures"
+description = "Diagnose CaR failures"
 license = "MPL-2.0"
 
 [[bin]]

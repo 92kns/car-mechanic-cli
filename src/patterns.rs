@@ -647,19 +647,23 @@ pub static PATTERNS: &[Pattern] = &[
     },
     Pattern {
         id: "code-cache-generator",
-        title: "Intermittent build failure: code_cache_generator or v8_context_snapshot",
+        title: "Build failure: code_cache_generator exits with status 127 or V8 snapshot error",
         platforms: &[Platform::MacosX64, Platform::MacosArm64, Platform::Linux64],
         error_patterns: &[
             r"code_cache_generator.*failed",
             r"code_cache_generator.*FAILED",
+            r"code_cache_generator.*exit.*127",
+            r"code_cache_generator.*status 127",
             r"v8_context_snapshot.*failed",
             r"FAILED.*code_cache",
             r"snapshot_blob",
         ],
-        cause: "The code_cache_generator and v8_context_snapshot tools are built and run \
-                as part of the Chromium build. They can fail intermittently due to resource \
-                constraints or upstream V8 changes. Setting use_v8_context_snapshot=false \
-                disables snapshot generation.",
+        cause: "On Linux, exit status 127 from code_cache_generator means a required shared \
+                library is missing at runtime (the binary was built but can't load). This is \
+                the same root cause as linux-missing-libs — check the Docker image. \
+                On all platforms, this can also fail intermittently due to resource constraints \
+                or upstream V8 changes. Setting use_v8_context_snapshot=false disables \
+                snapshot generation entirely.",
         fix_steps: &[
             FixStep {
                 description: "Verify use_v8_context_snapshot=false is set in GN args for \
@@ -667,6 +671,12 @@ pub static PATTERNS: &[Pattern] = &[
                 command: Some(
                     "grep -A 30 'custom-car' taskcluster/kinds/toolchain/misc.yml | grep v8_context_snapshot",
                 ),
+            },
+            FixStep {
+                description: "If exit status 127 on Linux: a shared library is missing at \
+                               runtime — run ldd on the chrome binary and follow the \
+                               linux-missing-libs pattern",
+                command: Some("ldd src/out/Default/code_cache_generator 2>&1 | grep 'not found'"),
             },
             FixStep {
                 description: "Check recent V8 upstream changes",

@@ -1,4 +1,6 @@
 mod diagnose;
+#[cfg(test)]
+mod tests;
 mod explain;
 mod list;
 mod patterns;

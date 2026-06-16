@@ -24,7 +24,7 @@ car-mechanic update
 
 ### `diagnose` — match a build log against known failures
 
-The recommended path is `--url` — pass a Treeherder job URL and the tool fetches the log via `treeherder-cli` automatically:
+The recommended path is `--url` — pass a Treeherder URL and the tool fetches failure logs via `treeherder-cli` automatically (`treeherder-cli` only fetches failing jobs, which is exactly what you want):
 
 ```
 car-mechanic diagnose --url 'https://treeherder.mozilla.org/jobs?repo=mozilla-central&...'

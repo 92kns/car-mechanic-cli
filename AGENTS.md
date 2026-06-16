@@ -3,6 +3,18 @@
 `car-mechanic` is a CLI tool for diagnosing and fixing Mozilla custom Chromium-as-Release
 (CaR) build failures. It encodes tribal knowledge from ~40 bugs since CaR inception (~2022).
 
+## Companion tools available in a mozilla-central checkout
+
+| Tool | Purpose |
+|---|---|
+| `car-mechanic search` | Search upstream **Chromium** source (chromium-search, bundled) |
+| `searchfox-cli` | Search **Firefox/mozilla-central** source — use for taskcluster configs, build scripts |
+| `treeherder-cli` | Fetch CI **failure** logs — pass a Treeherder URL to `car-mechanic diagnose --url` |
+
+`searchfox-cli` and `treeherder-cli` are available in any mozilla-central checkout.
+Use `searchfox-cli` when you need to look up Firefox-side code (e.g. `build-custom-car.sh`,
+`misc.yml` contents, Taskcluster transforms). Use `car-mechanic search` for upstream Chromium.
+
 ## Setup (one time per clone)
 
 ```bash
@@ -28,15 +40,15 @@ car-mechanic update
 
 ### 1. diagnose — the primary entry point
 
-**Preferred**: pass a Treeherder URL directly — the tool fetches the log via `treeherder-cli`:
+**Preferred**: pass a Treeherder URL directly — the tool fetches failure logs via `treeherder-cli`:
 
 ```
 car-mechanic diagnose --url 'https://treeherder.mozilla.org/jobs?repo=mozilla-central&revision=abc&...'
 car-mechanic diagnose --url 'https://treeherder.mozilla.org/...' --json
 ```
 
-`treeherder-cli` is available in any mozilla-central checkout. The `--url` flag automatically
-runs it with `--fetch-logs --filter custom-car --match-filter failure`.
+`treeherder-cli` only fetches **failure** logs (passing jobs have no useful log to diagnose).
+The `--url` flag runs it with `--fetch-logs --filter custom-car --match-filter failure`.
 
 Alternatively, pipe or pass a file:
 

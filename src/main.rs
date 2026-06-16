@@ -1,12 +1,13 @@
+mod check;
 mod diagnose;
-#[cfg(test)]
-mod tests;
 mod explain;
 mod list;
 mod patterns;
 mod risk;
 mod search;
 mod types;
+#[cfg(test)]
+mod tests;
 
 use std::path::PathBuf;
 
@@ -34,11 +35,19 @@ struct Cli {
 enum Commands {
     /// Pattern-match a build log against known CaR failure signatures
     ///
-    /// Reads from a file or stdin. Pipe a CI log directly:
+    /// Reads from a file, stdin, or a Treeherder URL (via treeherder-cli).
+    ///
+    /// Examples:
     ///   treeherder-cli log <task-id> | car-mechanic diagnose
+    ///   car-mechanic diagnose --url 'https://treeherder.mozilla.org/jobs?...'
+    ///   car-mechanic diagnose build.log
     Diagnose {
         /// Path to log file (reads stdin if omitted)
         file: Option<PathBuf>,
+
+        /// Fetch logs from a Treeherder URL via treeherder-cli instead of reading a file
+        #[arg(long, value_name = "TREEHERDER_URL", conflicts_with = "file")]
+        url: Option<String>,
 
         /// Restrict to patterns for a specific platform
         /// (macos-x64, macos-arm64, linux64, win64, android)
@@ -61,9 +70,19 @@ enum Commands {
         platform: Option<String>,
     },
 
+    /// Pre-flight config checks for a CaR platform
+    ///
+    /// Reminds you what to verify in misc.yml before or after a build failure:
+    /// timeout margins, GN args, SDK version checks, python version pin.
+    Check {
+        /// Platform to check (macos-x64, macos-arm64, linux64, win64, android)
+        /// Checks all platforms if omitted.
+        platform: Option<String>,
+    },
+
     /// Search Chromium, depot_tools, or V8 source code
     ///
-    /// For --repo chromium (default), delegates to chromium-search on PATH.
+    /// For --repo chromium (default), delegates to chromium-search (bundled or PATH).
     /// For --repo depot_tools or --repo v8, searches recent commit messages.
     ///
     /// Examples:
@@ -98,11 +117,10 @@ enum Commands {
 
     /// Show recent upstream changes to files known to break CaR builds
     ///
-    /// Queries the GitHub API for the most recent commits to tracked high-risk
-    /// files in Chromium and V8.
+    /// Queries the GitHub API for the most recent commits to tracked high-risk files.
+    /// Set GITHUB_TOKEN env var to raise the rate limit (60 → 5000 req/hour).
     Risk {
-        /// Informational label for how many days back you care about;
-        /// the command always returns the 5 most recent commits per file
+        /// Informational label for the time window; command always shows 5 most recent commits
         #[arg(long, default_value = "7")]
         since: u32,
 
@@ -120,11 +138,16 @@ enum Commands {
 fn main() -> Result<()> {
     let cli = Cli::parse();
     match cli.command {
-        Commands::Diagnose { file, platform } => {
-            diagnose::run(file, platform.as_deref(), cli.json)
+        Commands::Diagnose { file, url, platform } => {
+            if let Some(u) = url {
+                diagnose::run_from_url(&u, platform.as_deref(), cli.json)
+            } else {
+                diagnose::run(file, platform.as_deref(), cli.json)
+            }
         }
         Commands::Explain { id } => explain::run(&id, cli.json),
         Commands::List { platform } => list::run(platform.as_deref(), cli.json),
+        Commands::Check { platform } => check::run(platform.as_deref(), cli.json),
         Commands::Search {
             query,
             repo,

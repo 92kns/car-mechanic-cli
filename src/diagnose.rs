@@ -1,7 +1,7 @@
 use std::io::Read;
 use std::path::PathBuf;
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use regex::Regex;
 
 use crate::patterns::PATTERNS;
@@ -9,6 +9,47 @@ use crate::types::{DiagnoseMatch, Platform};
 
 pub fn run(file: Option<PathBuf>, platform: Option<&str>, json: bool) -> Result<()> {
     let log_text = read_input(file)?;
+    run_on_text(&log_text, platform, json)
+}
+
+pub fn run_from_url(url: &str, platform: Option<&str>, json: bool) -> Result<()> {
+    eprintln!("Fetching CaR failure logs via treeherder-cli...");
+    let output = std::process::Command::new("treeherder-cli")
+        .args([
+            url,
+            "--fetch-logs",
+            "--filter", "custom-car",
+            "--match-filter", "failure",
+        ])
+        .output()
+        .map_err(|e| {
+            if e.kind() == std::io::ErrorKind::NotFound {
+                anyhow::anyhow!(
+                    "treeherder-cli not found on PATH.\n\
+                     It ships with the Firefox repo — make sure ~/firefox is set up \
+                     and treeherder-cli is on your PATH."
+                )
+            } else {
+                anyhow::anyhow!("running treeherder-cli: {}", e)
+            }
+        })?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        bail!("treeherder-cli failed:\n{}", stderr);
+    }
+
+    let log_text = String::from_utf8_lossy(&output.stdout).into_owned();
+    if log_text.trim().is_empty() {
+        eprintln!("treeherder-cli returned no output. The task may not have failed yet, \
+                   or no custom-car jobs matched.");
+        return Ok(());
+    }
+
+    run_on_text(&log_text, platform, json)
+}
+
+fn run_on_text(log_text: &str, platform: Option<&str>, json: bool) -> Result<()> {
     let platform_filter = platform.and_then(Platform::from_str);
 
     let mut matches: Vec<DiagnoseMatch> = PATTERNS
@@ -24,7 +65,7 @@ pub fn run(file: Option<PathBuf>, platform: Option<&str>, json: bool) -> Result<
             let mut matched_on: Vec<String> = Vec::new();
             for &pat in pattern.error_patterns {
                 match Regex::new(pat) {
-                    Ok(re) if re.is_match(&log_text) => matched_on.push(pat.to_string()),
+                    Ok(re) if re.is_match(log_text) => matched_on.push(pat.to_string()),
                     Ok(_) => {}
                     Err(e) => eprintln!("warn: invalid regex '{}': {}", pat, e),
                 }
@@ -108,10 +149,8 @@ pub fn run(file: Option<PathBuf>, platform: Option<&str>, json: bool) -> Result<
 
 fn read_input(file: Option<PathBuf>) -> Result<String> {
     match file {
-        Some(path) => {
-            std::fs::read_to_string(&path)
-                .with_context(|| format!("reading {}", path.display()))
-        }
+        Some(path) => std::fs::read_to_string(&path)
+            .with_context(|| format!("reading {}", path.display())),
         None => {
             let mut buf = String::new();
             std::io::stdin()

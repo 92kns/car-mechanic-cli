@@ -249,16 +249,31 @@ fn fetch_github_commits(repo: &str, path: &str, n: usize) -> Result<Vec<GithubCo
         repo, path, n
     );
 
-    let body = ureq::get(&url)
+    let mut req = ureq::get(&url)
         .set("Accept", "application/vnd.github.v3+json")
-        .set("User-Agent", "car-mechanic-cli")
-        .call()
-        .with_context(|| format!("GET {}", url))?
-        .into_string()
-        .context("reading response body")?;
+        .set("User-Agent", "car-mechanic-cli");
 
-    let commits: Vec<GithubCommit> =
-        serde_json::from_str(&body).with_context(|| format!("parsing commits for {}", path))?;
+    if let Ok(token) = std::env::var("GITHUB_TOKEN") {
+        req = req.set("Authorization", &format!("Bearer {}", token));
+    }
 
-    Ok(commits)
+    let resp = req.call();
+
+    match resp {
+        Err(ureq::Error::Status(403, _)) | Err(ureq::Error::Status(429, _)) => {
+            anyhow::bail!(
+                "GitHub API rate limit hit for {}.\n\
+                 Set GITHUB_TOKEN env var to raise the limit (60 → 5000 req/hour):\n\
+                 export GITHUB_TOKEN=<your-token>",
+                path
+            )
+        }
+        Err(e) => return Err(e).with_context(|| format!("GET {}", url)),
+        Ok(response) => {
+            let body = response.into_string().context("reading response body")?;
+            let commits: Vec<GithubCommit> = serde_json::from_str(&body)
+                .with_context(|| format!("parsing commits for {}", path))?;
+            Ok(commits)
+        }
+    }
 }

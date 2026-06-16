@@ -3,6 +3,13 @@
 `car-mechanic` is a CLI tool for diagnosing and fixing Mozilla custom Chromium-as-Release
 (CaR) build failures. It encodes tribal knowledge from ~40 bugs since CaR inception (~2022).
 
+## Setup (one time per clone)
+
+```bash
+cargo install --git https://github.com/92kns/car-mechanic-cli
+git config core.hooksPath .githooks   # enforce rustfmt before every push
+```
+
 ## Installation
 
 ```

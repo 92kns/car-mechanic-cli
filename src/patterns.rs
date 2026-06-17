@@ -360,6 +360,7 @@ pub static PATTERNS: &[Pattern] = &[
         error_patterns: &[
             r"cannot open shared object",
             r"error while loading shared libraries",
+            r"libX11.*not found",
             r"libxcb.*not found",
             r"libdbus.*not found",
             r"libgtk.*not found",
@@ -389,7 +390,7 @@ pub static PATTERNS: &[Pattern] = &[
                 command: Some("car-mechanic search --cat build/install-build-deps.py"),
             },
         ],
-        bugs: &[1989677, 2027893],
+        bugs: &[1989677, 2027893, 2047831],
         upstream_files: &["build/install-build-deps.py"],
         search_queries: &[
             "cat build/install-build-deps.py",

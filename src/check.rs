@@ -210,11 +210,16 @@ fn check_task(c: &PlatformConfig, misc_content: &str) -> Vec<CheckItem> {
         });
     }
 
+    // Linux64 Dockerfile package check
+    if c.platform == Platform::Linux64 {
+        items.extend(check_dockerfile_packages());
+    }
+
     items
 }
 
-fn offline_checks(_c: &PlatformConfig) -> Vec<CheckItem> {
-    vec![
+fn offline_checks(c: &PlatformConfig) -> Vec<CheckItem> {
+    let mut items = vec![
         CheckItem {
             name: "max-run-time".to_string(),
             status: "info",
@@ -225,7 +230,42 @@ fn offline_checks(_c: &PlatformConfig) -> Vec<CheckItem> {
             status: "info",
             detail: "run from mozilla-central checkout to verify".to_string(),
         },
-    ]
+    ];
+    if c.platform == Platform::Linux64 {
+        items.extend(check_dockerfile_packages());
+    }
+    items
+}
+
+/// Surface the Dockerfile path so users know where to cross-check runtime libs.
+fn check_dockerfile_packages() -> Vec<CheckItem> {
+    let detail = match find_linux_dockerfile() {
+        Some(path) => format!(
+            "{} — cross-check apt packages against `car-mechanic search --cat build/install-build-deps.py`",
+            path.display()
+        ),
+        None => "taskcluster/docker/custom-car-linux/Dockerfile not found — \
+                 run from a mozilla-central checkout for this check"
+            .to_string(),
+    };
+    vec![CheckItem {
+        name: "dockerfile".to_string(),
+        status: "info",
+        detail,
+    }]
+}
+
+fn find_linux_dockerfile() -> Option<PathBuf> {
+    let mut dir = std::env::current_dir().ok()?;
+    loop {
+        let candidate = dir.join("taskcluster/docker/custom-car-linux/Dockerfile");
+        if candidate.exists() {
+            return Some(candidate);
+        }
+        if !dir.pop() {
+            return None;
+        }
+    }
 }
 
 /// Walk up from CWD to find taskcluster/kinds/toolchain/misc.yml

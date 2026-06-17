@@ -243,3 +243,61 @@ fn diagnose_no_match_for_unrelated_log() {
     let ids = matching_ids(log);
     assert!(ids.is_empty(), "unexpected matches: {:?}", ids);
 }
+
+#[test]
+fn diagnose_linux_missing_libx11() {
+    // Bug 2047831
+    let log = "code_cache_generator: error while loading shared libraries: libX11.so.6: cannot open shared object file: No such file or directory";
+    let ids = matching_ids(log);
+    assert!(ids.contains(&"linux-missing-libs"), "got: {:?}", ids);
+}
+
+// ---------------------------------------------------------------------------
+// URL normalization
+// ---------------------------------------------------------------------------
+
+#[test]
+fn is_tc_task_id_valid() {
+    assert!(crate::diagnose::is_tc_task_id("UWjqf7IgReac7jLj7MvSCQ"));
+    assert!(crate::diagnose::is_tc_task_id("abc123DEF456ghi789JK__"));
+    assert!(crate::diagnose::is_tc_task_id("aaaaaaaaaaaaaaaaaaaaaa")); // 22 a's
+}
+
+#[test]
+fn is_tc_task_id_rejects_invalid() {
+    assert!(!crate::diagnose::is_tc_task_id("short"));
+    assert!(!crate::diagnose::is_tc_task_id(
+        "waytoolongtobeataskid123456"
+    ));
+    assert!(!crate::diagnose::is_tc_task_id("UWjqf7IgReac7jLj7MvSC!")); // invalid char
+    assert!(!crate::diagnose::is_tc_task_id(
+        "https://treeherder.mozilla.org/jobs?repo=mozilla-central&revision=abc"
+    ));
+}
+
+#[test]
+fn extract_tc_task_id_from_tasks_url() {
+    let id = crate::diagnose::extract_tc_task_id_from_url(
+        "https://firefox-ci-tc.services.mozilla.com/tasks/UWjqf7IgReac7jLj7MvSCQ",
+    )
+    .unwrap();
+    assert_eq!(id, "UWjqf7IgReac7jLj7MvSCQ");
+}
+
+#[test]
+fn extract_tc_task_id_from_api_url() {
+    let id = crate::diagnose::extract_tc_task_id_from_url(
+        "https://firefox-ci-tc.services.mozilla.com/api/queue/v1/task/UWjqf7IgReac7jLj7MvSCQ",
+    )
+    .unwrap();
+    assert_eq!(id, "UWjqf7IgReac7jLj7MvSCQ");
+}
+
+#[test]
+fn extract_tc_task_id_from_url_with_subtab() {
+    let id = crate::diagnose::extract_tc_task_id_from_url(
+        "https://firefox-ci-tc.services.mozilla.com/tasks/UWjqf7IgReac7jLj7MvSCQ/details",
+    )
+    .unwrap();
+    assert_eq!(id, "UWjqf7IgReac7jLj7MvSCQ");
+}

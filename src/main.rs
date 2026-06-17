@@ -36,18 +36,25 @@ struct Cli {
 enum Commands {
     /// Pattern-match a build log against known CaR failure signatures
     ///
-    /// Reads from a file, stdin, or a Treeherder URL (via treeherder-cli).
+    /// Reads from a file, stdin, or a URL/task ID (resolved via treeherder-cli).
+    ///
+    /// Accepted URL types for --url:
+    ///   Treeherder jobs URL:      https://treeherder.mozilla.org/jobs?repo=...&revision=<hash>
+    ///   Treeherder logviewer URL: https://treeherder.mozilla.org/logviewer?job_id=<id>&repo=<repo>
+    ///   Taskcluster task URL:     https://firefox-ci-tc.services.mozilla.com/tasks/<task-id>
+    ///   Bare task ID:             <22-char id e.g. UWjqf7IgReac7jLj7MvSCQ>
     ///
     /// Examples:
+    ///   car-mechanic diagnose --url 'https://treeherder.mozilla.org/jobs?repo=...&revision=...'
+    ///   car-mechanic diagnose --url UWjqf7IgReac7jLj7MvSCQ
     ///   treeherder-cli log <task-id> | car-mechanic diagnose
-    ///   car-mechanic diagnose --url 'https://treeherder.mozilla.org/jobs?...'
     ///   car-mechanic diagnose build.log
     Diagnose {
         /// Path to log file (reads stdin if omitted)
         file: Option<PathBuf>,
 
-        /// Fetch logs from a Treeherder URL via treeherder-cli instead of reading a file
-        #[arg(long, value_name = "TREEHERDER_URL", conflicts_with = "file")]
+        /// Fetch logs from a Treeherder URL, logviewer URL, TC task URL, or bare task ID
+        #[arg(long, value_name = "URL_OR_TASK_ID", conflicts_with = "file")]
         url: Option<String>,
 
         /// Restrict to patterns for a specific platform

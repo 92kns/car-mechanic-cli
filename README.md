@@ -32,10 +32,20 @@ car-mechanic update
 
 ### `diagnose` — match a build log against known failures
 
-The recommended path is `--url` — pass a Treeherder URL and the tool fetches failure logs via `treeherder-cli` automatically (`treeherder-cli` only fetches failing jobs, which is exactly what you want):
+The recommended path is `--url` — car-mechanic resolves the URL to a Treeherder jobs URL and fetches failure logs via `treeherder-cli` automatically. Four input formats are accepted:
 
 ```
-car-mechanic diagnose --url 'https://treeherder.mozilla.org/jobs?repo=mozilla-central&...'
+# Treeherder jobs URL
+car-mechanic diagnose --url 'https://treeherder.mozilla.org/jobs?repo=mozilla-central&revision=<hash>'
+
+# Treeherder logviewer URL
+car-mechanic diagnose --url 'https://treeherder.mozilla.org/logviewer?job_id=<id>&repo=mozilla-central'
+
+# Taskcluster task URL
+car-mechanic diagnose --url 'https://firefox-ci-tc.services.mozilla.com/tasks/<task-id>'
+
+# Bare task ID
+car-mechanic diagnose --url UWjqf7IgReac7jLj7MvSCQ
 ```
 
 Or pipe / pass a file manually:
@@ -60,7 +70,7 @@ Platforms: `macos-x64`, `macos-arm64`, `linux64`, `win64`, `android`
 
 ### `check` — pre-flight config check
 
-Reads `taskcluster/kinds/toolchain/misc.yml` from your mozilla-central checkout and reports the live config for each CaR platform: `max-run-time`, Python version, and macOS SDK being fetched.
+Reads `taskcluster/kinds/toolchain/misc.yml` from your mozilla-central checkout and reports the live config for each CaR platform: `max-run-time`, Python version, macOS SDK being fetched, and (for linux64) the path to the Docker image so you can cross-check runtime lib packages against `install-build-deps.py`.
 
 ```
 car-mechanic check               # all platforms

@@ -285,8 +285,37 @@ fn resolve_from_tc_task_id(task_id: &str) -> Result<String> {
     ))
 }
 
+fn detect_platform_from_log(log: &str) -> Option<Platform> {
+    // Check arm64 before x64 — macosx-custom-car is a substring of macosx-arm64-custom-car
+    if log.contains("macosx-arm64-custom-car") {
+        Some(Platform::MacosArm64)
+    } else if log.contains("macosx-custom-car") {
+        Some(Platform::MacosX64)
+    } else if log.contains("android-custom-car") {
+        Some(Platform::Android)
+    } else if log.contains("linux64-custom-car") {
+        Some(Platform::Linux64)
+    } else if log.contains("win64-custom-car") {
+        Some(Platform::Win64)
+    } else {
+        None
+    }
+}
+
 fn run_on_text(log_text: &str, platform: Option<&str>, json: bool) -> Result<()> {
-    let platform_filter = platform.and_then(Platform::from_str);
+    let platform_filter = if let Some(p) = platform.and_then(Platform::from_str) {
+        Some(p)
+    } else if let Some(p) = detect_platform_from_log(log_text) {
+        if !json {
+            eprintln!(
+                "note: auto-detected platform {} from log — use --platform to override",
+                p.as_str()
+            );
+        }
+        Some(p)
+    } else {
+        None
+    };
 
     let mut matches: Vec<DiagnoseMatch> = PATTERNS
         .iter()

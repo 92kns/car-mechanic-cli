@@ -210,9 +210,9 @@ fn check_task(c: &PlatformConfig, misc_content: &str) -> Vec<CheckItem> {
         });
     }
 
-    // Linux64 Dockerfile package check
-    if c.platform == Platform::Linux64 {
-        items.extend(check_dockerfile_packages());
+    // Linux/Android Dockerfile pointer
+    if matches!(c.platform, Platform::Linux64 | Platform::Android) {
+        items.extend(check_dockerfile(c.platform));
     }
 
     items
@@ -231,22 +231,28 @@ fn offline_checks(c: &PlatformConfig) -> Vec<CheckItem> {
             detail: "run from mozilla-central checkout to verify".to_string(),
         },
     ];
-    if c.platform == Platform::Linux64 {
-        items.extend(check_dockerfile_packages());
+    if matches!(c.platform, Platform::Linux64 | Platform::Android) {
+        items.extend(check_dockerfile(c.platform));
     }
     items
 }
 
-/// Surface the Dockerfile path so users know where to cross-check runtime libs.
-fn check_dockerfile_packages() -> Vec<CheckItem> {
-    let detail = match find_linux_dockerfile() {
+/// Surface the Docker image path so users know where to cross-check runtime libs.
+fn check_dockerfile(platform: Platform) -> Vec<CheckItem> {
+    let rel_path = match platform {
+        Platform::Linux64 => "taskcluster/docker/custom-car-linux/Dockerfile",
+        Platform::Android => "taskcluster/docker/custom-car-android/Dockerfile",
+        _ => return vec![],
+    };
+    let detail = match find_dockerfile(rel_path) {
         Some(path) => format!(
             "{} — cross-check apt packages against `car-mechanic search --cat build/install-build-deps.py`",
             path.display()
         ),
-        None => "taskcluster/docker/custom-car-linux/Dockerfile not found — \
-                 run from a mozilla-central checkout for this check"
-            .to_string(),
+        None => format!(
+            "{} not found — run from a mozilla-central checkout for this check",
+            rel_path
+        ),
     };
     vec![CheckItem {
         name: "dockerfile".to_string(),
@@ -255,10 +261,10 @@ fn check_dockerfile_packages() -> Vec<CheckItem> {
     }]
 }
 
-fn find_linux_dockerfile() -> Option<PathBuf> {
+fn find_dockerfile(rel_path: &str) -> Option<PathBuf> {
     let mut dir = std::env::current_dir().ok()?;
     loop {
-        let candidate = dir.join("taskcluster/docker/custom-car-linux/Dockerfile");
+        let candidate = dir.join(rel_path);
         if candidate.exists() {
             return Some(candidate);
         }

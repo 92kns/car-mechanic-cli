@@ -390,7 +390,7 @@ pub static PATTERNS: &[Pattern] = &[
                 command: Some("car-mechanic search --cat build/install-build-deps.py"),
             },
         ],
-        bugs: &[1989677, 2027893, 2047831],
+        bugs: &[1989677, 2027893, 2047831, 2049686],
         upstream_files: &["build/install-build-deps.py"],
         search_queries: &[
             "cat build/install-build-deps.py",

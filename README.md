@@ -1,8 +1,8 @@
 # car-mechanic
 
-CLI tool for diagnosing and fixing Mozilla custom Chromium-as-Release (CaR) build failures.
+CLI tool for diagnosing and fixing CaR build failures.
 
-Encodes tribal knowledge from ~40 bugs since CaR inception (~2022) into structured, queryable patterns. Designed for use by both engineers and AI agents.
+Encodes accumulated knowledge from years of CI breakages into structured, queryable patterns. Designed for use by both engineers and AI agents.
 
 > For AI agents: see [AGENTS.md](AGENTS.md) for the full diagnostic workflow.
 

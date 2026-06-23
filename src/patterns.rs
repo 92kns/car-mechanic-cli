@@ -684,7 +684,7 @@ pub static PATTERNS: &[Pattern] = &[
     Pattern {
         id: "code-cache-generator",
         title: "Build failure: code_cache_generator exits with status 127 or V8 snapshot error",
-        platforms: &[Platform::MacosX64, Platform::MacosArm64, Platform::Linux64],
+        platforms: &[Platform::MacosX64, Platform::MacosArm64, Platform::Linux64, Platform::Android],
         error_patterns: &[
             r"code_cache_generator.*failed",
             r"code_cache_generator.*FAILED",
@@ -694,9 +694,11 @@ pub static PATTERNS: &[Pattern] = &[
             r"FAILED.*code_cache",
             r"snapshot_blob",
         ],
-        cause: "On Linux, exit status 127 from code_cache_generator means a required shared \
-                library is missing at runtime (the binary was built but can't load). This is \
-                the same root cause as linux-missing-libs — check the Docker image. \
+        cause: "On Linux and Android, exit status 127 from code_cache_generator means a \
+                required shared library is missing at runtime. The generator is a host x64 \
+                binary that runs during cross-compilation and dynamically links X11 libs — \
+                both the linux and android Docker images must include them. This is the same \
+                root cause as linux-missing-libs — check the relevant Dockerfile. \
                 On all platforms, this can also fail intermittently due to resource constraints \
                 or upstream V8 changes. Setting use_v8_context_snapshot=false disables \
                 snapshot generation entirely.",

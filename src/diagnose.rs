@@ -13,10 +13,15 @@ pub fn run(file: Option<PathBuf>, platform: Option<&str>, json: bool) -> Result<
 }
 
 pub fn run_from_url(url: &str, platform: Option<&str>, json: bool) -> Result<()> {
-    let treeherder_url = normalize_to_treeherder_url(url)?;
+    let (treeherder_url, url_platform) = normalize_to_treeherder_url(url)?;
     if treeherder_url != url {
         eprintln!("Resolved to Treeherder URL: {}", treeherder_url);
     }
+    // Platform from --platform flag wins; fall back to what we detected during URL resolution
+    let effective_platform: Option<String> = platform
+        .map(|s| s.to_string())
+        .or_else(|| url_platform.map(|p| p.as_str().to_string()));
+
     eprintln!("Fetching CaR failure logs via treeherder-cli...");
     let output = std::process::Command::new("treeherder-cli")
         .args([
@@ -62,22 +67,24 @@ pub fn run_from_url(url: &str, platform: Option<&str>, json: bool) -> Result<()>
         return Ok(());
     }
 
-    run_on_text(&log_text, platform, json)
+    run_on_text(&log_text, effective_platform.as_deref(), json)
 }
 
 /// Normalize any supported URL type or bare task ID to a Treeherder jobs URL.
-fn normalize_to_treeherder_url(url: &str) -> Result<String> {
+/// Also returns the detected platform when the input is a TC task URL/ID.
+fn normalize_to_treeherder_url(url: &str) -> Result<(String, Option<Platform>)> {
     // Already a Treeherder jobs URL with revision
     if (url.contains("treeherder.mozilla.org/jobs")
         || url.contains("treeherder.mozilla.org/#/jobs"))
         && url.contains("revision=")
     {
-        return Ok(url.to_string());
+        return Ok((url.to_string(), None));
     }
 
     // Treeherder logviewer URL
     if url.contains("treeherder.mozilla.org") && url.contains("logviewer") {
-        return resolve_from_logviewer_url(url);
+        let th_url = resolve_from_logviewer_url(url)?;
+        return Ok((th_url, None));
     }
 
     // Taskcluster task URL (API endpoint or UI)
@@ -120,6 +127,25 @@ pub(crate) fn extract_tc_task_id_from_url(url: &str) -> Result<String> {
          Expected: https://firefox-ci-tc.services.mozilla.com/tasks/<22-char-id>",
         url
     )
+}
+
+/// Detect a CaR platform from any string containing a task name.
+/// Used both for TC task metadata.name and for log text scanning.
+fn detect_platform_from_str(s: &str) -> Option<Platform> {
+    // Check arm64 before x64 — macosx-custom-car is a substring of macosx-arm64-custom-car
+    if s.contains("macosx-arm64-custom-car") || s.contains("macos-arm64-custom-car") {
+        Some(Platform::MacosArm64)
+    } else if s.contains("macosx-custom-car") || s.contains("macos-x64-custom-car") {
+        Some(Platform::MacosX64)
+    } else if s.contains("android-custom-car") {
+        Some(Platform::Android)
+    } else if s.contains("linux64-custom-car") {
+        Some(Platform::Linux64)
+    } else if s.contains("win64-custom-car") {
+        Some(Platform::Win64)
+    } else {
+        None
+    }
 }
 
 fn resolve_from_logviewer_url(url: &str) -> Result<String> {
@@ -216,9 +242,13 @@ fn resolve_from_logviewer_url(url: &str) -> Result<String> {
     ))
 }
 
-fn resolve_from_tc_task_id(task_id: &str) -> Result<String> {
+fn resolve_from_tc_task_id(task_id: &str) -> Result<(String, Option<Platform>)> {
     eprintln!("Resolving TC task {} to Treeherder URL...", task_id);
 
+    #[derive(serde::Deserialize)]
+    struct Metadata {
+        name: Option<String>,
+    }
     #[derive(serde::Deserialize)]
     struct Env {
         #[serde(rename = "GECKO_HEAD_REV")]
@@ -232,6 +262,7 @@ fn resolve_from_tc_task_id(task_id: &str) -> Result<String> {
     }
     #[derive(serde::Deserialize)]
     struct Task {
+        metadata: Option<Metadata>,
         payload: Option<Payload>,
     }
 
@@ -251,6 +282,13 @@ fn resolve_from_tc_task_id(task_id: &str) -> Result<String> {
             &task_body[..task_body.len().min(300)]
         )
     })?;
+
+    // Detect platform from task name (e.g. "toolchain-android-custom-car")
+    let platform = task
+        .metadata
+        .as_ref()
+        .and_then(|m| m.name.as_deref())
+        .and_then(detect_platform_from_str);
 
     let env = task.payload.and_then(|p| p.env).ok_or_else(|| {
         anyhow::anyhow!(
@@ -279,33 +317,18 @@ fn resolve_from_tc_task_id(task_id: &str) -> Result<String> {
         .unwrap_or("mozilla-central")
         .to_string();
 
-    Ok(format!(
+    let treeherder_url = format!(
         "https://treeherder.mozilla.org/jobs?repo={}&revision={}",
         repo, revision
-    ))
-}
-
-fn detect_platform_from_log(log: &str) -> Option<Platform> {
-    // Check arm64 before x64 — macosx-custom-car is a substring of macosx-arm64-custom-car
-    if log.contains("macosx-arm64-custom-car") {
-        Some(Platform::MacosArm64)
-    } else if log.contains("macosx-custom-car") {
-        Some(Platform::MacosX64)
-    } else if log.contains("android-custom-car") {
-        Some(Platform::Android)
-    } else if log.contains("linux64-custom-car") {
-        Some(Platform::Linux64)
-    } else if log.contains("win64-custom-car") {
-        Some(Platform::Win64)
-    } else {
-        None
-    }
+    );
+    Ok((treeherder_url, platform))
 }
 
 fn run_on_text(log_text: &str, platform: Option<&str>, json: bool) -> Result<()> {
+    // Use explicit --platform, or try to detect from log text as a last resort
     let platform_filter = if let Some(p) = platform.and_then(Platform::from_str) {
         Some(p)
-    } else if let Some(p) = detect_platform_from_log(log_text) {
+    } else if let Some(p) = detect_platform_from_str(log_text) {
         if !json {
             eprintln!(
                 "note: auto-detected platform {} from log — use --platform to override",

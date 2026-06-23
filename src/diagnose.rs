@@ -369,11 +369,27 @@ fn run_on_text(log_text: &str, platform: Option<&str>, json: bool) -> Result<()>
         })
         .collect();
 
-    matches.sort_by(|a, b| b.matched_on.len().cmp(&a.matched_on.len()));
+    // Primary sort: platform-specific patterns before cross-platform ones.
+    // Secondary: more regex hits within the same specificity bucket.
+    matches.sort_by(|a, b| {
+        a.pattern
+            .platforms
+            .len()
+            .cmp(&b.pattern.platforms.len())
+            .then(b.matched_on.len().cmp(&a.matched_on.len()))
+    });
 
     if json {
         println!("{}", serde_json::to_string_pretty(&matches)?);
         return Ok(());
+    }
+
+    if platform_filter.is_none() && matches.len() > 3 && !json {
+        eprintln!(
+            "note: platform not detected — {} patterns matched. \
+             Use --platform (linux64, android, macos-x64, macos-arm64, win64) to filter.",
+            matches.len()
+        );
     }
 
     if matches.is_empty() {

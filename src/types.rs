@@ -67,6 +67,13 @@ pub struct Pattern {
     pub search_queries: &'static [&'static str],
 }
 
+impl Pattern {
+    /// True when retrying the task is the recommended first step before investigating.
+    pub fn retry_first(&self) -> bool {
+        matches!(self.id, "fetch-network-error" | "linux-vulkan-crash")
+    }
+}
+
 #[derive(Debug, Serialize)]
 pub struct DiagnoseMatch<'a> {
     pub pattern: &'a Pattern,

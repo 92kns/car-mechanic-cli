@@ -7,7 +7,9 @@ mod risk;
 mod search;
 #[cfg(test)]
 mod tests;
+mod triage;
 mod types;
+mod upstream_refs;
 
 use std::path::PathBuf;
 
@@ -137,6 +139,29 @@ enum Commands {
         platform: Option<String>,
     },
 
+    /// Structured triage for CaR failures when pattern matching isn't enough
+    ///
+    /// Answers four diagnostic questions from the log:
+    ///   1. Phase: when did it fail — env setup, source sync, or compile/link?
+    ///   2. Scope: which platforms failed vs passed for this revision? (requires --url)
+    ///   3. Ownership: upstream infra, upstream code, or our configuration?
+    ///   4. Last good line: last successful operation before the first error.
+    ///
+    /// Produces a hypothesis and suggested next steps.
+    ///
+    /// Examples:
+    ///   car-mechanic triage --url UWjqf7IgReac7jLj7MvSCQ
+    ///   car-mechanic triage build.log
+    ///   cat failure.log | car-mechanic triage
+    Triage {
+        /// Path to log file (reads stdin if omitted)
+        file: Option<PathBuf>,
+
+        /// Fetch logs from a URL or task ID (same formats as diagnose --url)
+        #[arg(long, value_name = "URL_OR_TASK_ID", conflicts_with = "file")]
+        url: Option<String>,
+    },
+
     /// Update car-mechanic to the latest version from GitHub
     ///
     /// Equivalent to: cargo install --force --git https://github.com/92kns/car-mechanic-cli
@@ -182,6 +207,7 @@ fn main() -> Result<()> {
                 unreachable!("clap ensures query or --cat is present")
             }
         }
+        Commands::Triage { file, url } => triage::run(file, url.as_deref(), cli.json),
         Commands::Risk { since, platform } => risk::run(since, platform.as_deref(), cli.json),
         Commands::Update => run_update(),
         Commands::Agents => {

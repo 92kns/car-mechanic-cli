@@ -72,7 +72,7 @@ pub fn run_from_url(url: &str, platform: Option<&str>, json: bool) -> Result<()>
 
 /// Normalize any supported URL type or bare task ID to a Treeherder jobs URL.
 /// Also returns the detected platform when the input is a TC task URL/ID.
-fn normalize_to_treeherder_url(url: &str) -> Result<(String, Option<Platform>)> {
+pub(crate) fn normalize_to_treeherder_url(url: &str) -> Result<(String, Option<Platform>)> {
     // Already a Treeherder jobs URL with revision
     if (url.contains("treeherder.mozilla.org/jobs")
         || url.contains("treeherder.mozilla.org/#/jobs"))
@@ -407,7 +407,12 @@ fn run_on_text(log_text: &str, platform: Option<&str>, json: bool) -> Result<()>
         let p = m.pattern;
         let platforms: Vec<&str> = p.platforms.iter().map(|pl| pl.as_str()).collect();
 
-        println!("{}. [{}] {}", i + 1, p.id, p.title);
+        let retry_tag = if p.retry_first() {
+            " [retry first]"
+        } else {
+            ""
+        };
+        println!("{}. [{}] {}{}", i + 1, p.id, p.title, retry_tag);
         println!("   Platforms : {}", platforms.join(", "));
         println!("   Matched on: {}", m.matched_on.join(", "));
         println!();
@@ -424,7 +429,7 @@ fn run_on_text(log_text: &str, platform: Option<&str>, json: bool) -> Result<()>
 
         if !p.bugs.is_empty() {
             println!();
-            println!("   Related bugs:");
+            println!("   Related bugs ({}):", p.bugs.len());
             for b in p.bugs {
                 println!("     https://bugzilla.mozilla.org/show_bug.cgi?id={}", b);
             }
@@ -449,6 +454,13 @@ fn run_on_text(log_text: &str, platform: Option<&str>, json: bool) -> Result<()>
         if i < matches.len() - 1 {
             println!("\n{}\n", "-".repeat(72));
         }
+    }
+
+    // Surface any upstream tracker URLs found in the log
+    let tracker_refs = crate::upstream_refs::extract_tracker_refs(log_text);
+    if !tracker_refs.is_empty() {
+        let snippet = crate::upstream_refs::extract_error_snippet(log_text);
+        crate::upstream_refs::print_tracker_refs(&tracker_refs, snippet.as_deref());
     }
 
     Ok(())

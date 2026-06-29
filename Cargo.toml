@@ -1,6 +1,6 @@
 [package]
 name = "car-mechanic"
-version = "0.5.6"
+version = "0.5.7"
 edition = "2021"
 description = "Diagnose CaR failures"
 license = "MPL-2.0"

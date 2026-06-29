@@ -25,7 +25,7 @@ car-mechanic update
 | Tool | Required | Notes |
 |---|---|---|
 | `chromium-search` | Bundled | Vendored inside the binary — no install needed. PATH version takes priority if present. |
-| `treeherder-cli` | When using `diagnose --url` | Available in any mozilla-central checkout. Fetches CaR failure logs. |
+| `treeherder-cli` | When using `diagnose --url` or `triage --url` | Available in any mozilla-central checkout. Fetches CaR failure logs. |
 | `searchfox-cli` | Never called directly | Available in mozilla-central checkouts. Use it alongside car-mechanic to search Firefox-side code (taskcluster configs, build scripts). |
 
 ## Commands
@@ -64,9 +64,27 @@ car-mechanic diagnose --platform linux64 < build.log
 car-mechanic diagnose --json --url 'https://treeherder.mozilla.org/...'
 ```
 
-Returns: matched pattern(s), cause, ordered fix steps, related Bugzilla bugs, upstream files to check, and suggested search queries.
+Returns: matched pattern(s) ranked by platform specificity, cause, fix steps, related bug count, upstream files, suggested search queries, and any upstream tracker URLs (`crbug.com` etc.) found in the log with fetch results. Transient patterns are tagged `[retry first]`.
 
 Platforms: `macos-x64`, `macos-arm64`, `linux64`, `win64`, `android`
+
+### `triage` — structured reasoning when patterns don't match
+
+Use when `diagnose` returns no match or noisy results. Answers four questions and produces a hypothesis:
+
+```
+car-mechanic triage --url UWjqf7IgReac7jLj7MvSCQ
+car-mechanic triage build.log
+cat failure.log | car-mechanic triage
+```
+
+Output includes:
+- **Phase** — env setup / source sync / compile/link (from timestamps or log content)
+- **Scope** — which platforms failed vs passed for this revision (requires `--url`, calls Treeherder API)
+- **Ownership** — upstream infra, upstream code, or our config (path heuristics)
+- **Last good line** — last successful operation before the first error
+- **Docker diff** — packages in the linux image but not android (and vice versa), when run from a checkout
+- **Upstream tracker refs** — any `crbug.com` / `bugs.chromium.org` URLs found in the log, fetched inline; Google-internal issues (401) are flagged with alternative search suggestions
 
 ### `check` — pre-flight config check
 
